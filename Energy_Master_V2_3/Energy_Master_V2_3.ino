@@ -30,10 +30,10 @@ char inEnergyDisp[7];
 char outEnergyDisp[7];
 
 // Ethernet parameters for the main network
-byte my_mac[]   = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x22 };   // Our MAC address
-byte my_ip[]    = { 192, 168, 100, 22 };                    // Our IP address
-byte net_router[]   = { 192, 168, 100, 1  };                    // The network router facing the internet
-byte net_dns[] = { 192, 168, 100, 9  };                    // The network DNS server
+byte my_mac[]     = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x22 };   // Our MAC address
+byte my_ip[]      = { 192, 168, 100, 22 };                    // Our IP address
+byte net_router[] = { 192, 168, 100, 1  };                    // The network router facing the internet
+byte net_dns[]    = { 192, 168, 100, 9  };                    // The network DNS server
 
 EthernetClient client;                                 // We are a client meaning we call them, we don't look for connections
 
@@ -98,9 +98,9 @@ void setup() {
   delay(2000);
   
   lcd.clear();
-  lcd.print("In:    |Out:   ");
+  lcd.print("In:   |Out:  | ");
   lcd.setCursor(0,2);
-  lcd.print("-----W |-----W ");
+  lcd.print("-----W|-----W| ");
 }
 
 void loop() {
@@ -142,7 +142,7 @@ void loop() {
   sprintf(COSM_outMeter,"1,%d",outEnergy);                   // This data goes into stream 1 on COSM
   
   
-  // Create power differential string to be sent to Cosm
+  // Create power consumption difference string to be sent to Cosm
   sprintf(COSM_diff,"2,%d",(outEnergy-inEnergy));            // This data goes into stream 2 on COSM
   
   
@@ -152,32 +152,33 @@ void loop() {
   lcd.print(inEnergyDisp);
   
   sprintf(outEnergyDisp,"%5dW",outEnergy);
-  lcd.setCursor(8,2);
+  lcd.setCursor(7,2);
   lcd.print(outEnergyDisp);
 
   //Report it all via COSM
   if (client.connect("api.cosm.com", 80)) {
-      delay(100);                                                                            // (Test 3) Wait for COSM to be ready
-      
-      client.println("PUT /v2/feeds/42622.csv HTTP/1.1");                                    // Send the HTTP PUT request.
-      client.println("Host: api.cosm.com");                                                  // Send the host command        
-      client.println("X-ApiKey: y_eXWNhsWfsaedd6VhbA13e9qVYCa1_ck5VniQ-3uUw");               // Prove we are authorised to update this feed        
-      client.println("User-Agent: Energy-Master");                                           // Explain who we are     
-      client.print  ("Content-Length: ");
-         client.println((strlen(COSM_inMeter)+2+strlen(COSM_outMeter)+2+strlen(COSM_diff)));  // Send the length of the data being sent (remember the CR/LF)
-      client.println("Content-Type: text/csv");                                               // Content type      
-      client.println("Connection: close");                                                    // Explain we will close the connection 
-      client.println();                                                                       // Don't forgte the empty line between the header and the data!!
-      client.println(COSM_inMeter);                                                           // Send the data
-      client.println(COSM_outMeter);
-      client.println(COSM_diff);
-      client.println();
-
-  }
-
-    delay(1000);       // Wait for COSM to respond (Should actively read returned value - but this is simpler)
-
-    client.flush();    // Throw away anything waiting to be read
-    client.stop();     // Close the connection
     
+    delay(200);      // Take this out and it stops working - why?
+    
+    client.println("PUT /v2/feeds/42622.csv HTTP/1.1");                                    // Send the HTTP PUT request.
+    client.println("Host: api.cosm.com");                                                  // Send the host command        
+    client.println("X-ApiKey: y_eXWNhsWfsaedd6VhbA13e9qVYCa1_ck5VniQ-3uUw");               // Prove we are authorised to update this feed        
+    client.println("User-Agent: Energy-Master");                                           // Explain who we are     
+    client.print  ("Content-Length: ");
+       client.println((strlen(COSM_inMeter)+2+strlen(COSM_outMeter)+2+strlen(COSM_diff)));  // Send the length of the data being sent (remember the CR/LF)
+    client.println("Content-Type: text/csv");                                               // Content type      
+    client.println("Connection: close");                                                    // Explain we will close the connection 
+    client.println();                                                                       // Don't forgte the empty line between the header and the data!!
+    client.println(COSM_inMeter);                                                           // Send the data
+    client.println(COSM_outMeter);
+    client.println(COSM_diff);
+    client.println();
+
+    if (client.available()) {   // keep reading the return data till COSM stops sending it
+      char c = client.read();   // Just throw it away. If it worked good, if not, too bad.
+    }
+    
+    client.flush();
+    client.stop();
+  }    
 }
